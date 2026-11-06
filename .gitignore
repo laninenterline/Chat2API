@@ -1,6 +1,6 @@
 node_modules/
-dist/
-.wrangler/
-.dev.vars
-*.log
+logs/
 config.json
+.server.pid
+dist/
+*.log

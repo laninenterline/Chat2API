@@ -236,7 +236,7 @@ export interface ForwardResult {
   status?: number
   headers?: Record<string, string>
   body?: any
-  stream?: any
+  stream?: NodeJS.ReadableStream
   skipTransform?: boolean
   error?: string
   latency?: number

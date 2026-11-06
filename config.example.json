@@ -1,0 +1,82 @@
+{
+  "host": "127.0.0.1",
+  "port": 8080,
+  "apiKeys": [
+    "sk-local-test"
+  ],
+  "adminKey": "change-me-admin",
+  "loadBalanceStrategy": "round-robin",
+  "mode": "single",
+  "retryCount": 2,
+  "requestTimeout": 60000,
+  "modelMappings": {
+    "deepseek-flash": "deepseek-v4.1-flash",
+    "deepseek-v4-flash": "deepseek-v4.1-flash",
+    "deepseek-v4-pro": "deepseek-v4.1-flash",
+    "GLM-5.1": "GLM-5.3",
+    "MiniMax-M2.7": "MiniMax-M3.1-Flash",
+    "claude-3-5-haiku-*": "GLM-5.3-Flash",
+    "claude-*": "GLM-5.3",
+    "gpt-5-codex*": "deepseek-v4.1-flash",
+    "gpt-*": "deepseek-v4.1-flash",
+    "o3*": "GLM-5.3",
+    "o4*": "GLM-5.3"
+  },
+  "providers": {
+    "deepseek": {
+      "enabled": true
+    },
+    "glm": {
+      "enabled": true
+    },
+    "minimax": {
+      "enabled": true
+    }
+  },
+  "contextManagement": {
+    "enabled": true,
+    "strategies": {
+      "slidingWindow": {
+        "enabled": true,
+        "maxMessages": 20
+      },
+      "tokenLimit": {
+        "enabled": true,
+        "maxTokens": 32000
+      },
+      "summary": {
+        "enabled": false,
+        "keepRecentMessages": 20
+      }
+    },
+    "executionOrder": [
+      "slidingWindow",
+      "tokenLimit",
+      "summary"
+    ]
+  },
+  "accounts": [
+    {
+      "provider": "deepseek",
+      "name": "ds-1",
+      "credentials": {
+        "token": "填 chat.deepseek.com 的 userToken"
+      }
+    },
+    {
+      "provider": "glm",
+      "name": "glm-1",
+      "credentials": {
+        "refresh_token": "填 chatglm.cn 的 chatglm_refresh_token"
+      }
+    },
+    {
+      "provider": "minimax",
+      "name": "mm-1",
+      "credentials": {
+        "token": "realUserID+JWTtoken 或只填 JWT",
+        "realUserID": "可留空"
+      }
+    }
+  ]
+}

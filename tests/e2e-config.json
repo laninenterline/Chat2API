@@ -1,0 +1,70 @@
+{
+  "host": "127.0.0.1",
+  "port": 18081,
+  "apiKeys": [
+    "sk-e2e"
+  ],
+  "adminKey": "e2e-admin",
+  "loadBalanceStrategy": "round-robin",
+  "mode": "single",
+  "retryCount": 0,
+  "requestTimeout": 15000,
+  "modelMappings": {
+    "claude-*": {
+      "requestModel": "claude-*",
+      "actualModel": "mock-model"
+    },
+    "gpt-*": {
+      "requestModel": "gpt-*",
+      "actualModel": "mock-model"
+    }
+  },
+  "providers": {
+    "deepseek": {
+      "enabled": false
+    },
+    "glm": {
+      "enabled": false
+    },
+    "minimax": {
+      "enabled": false
+    },
+    "openai": {
+      "enabled": true,
+      "apiEndpoint": "http://127.0.0.1:18080/v1"
+    }
+  },
+  "accounts": [
+    {
+      "id": "acc-openai-1",
+      "name": "mock",
+      "provider": "openai",
+      "credentials": {
+        "apiKey": "sk-mock"
+      },
+      "status": "active"
+    }
+  ],
+  "contextManagement": {
+    "enabled": false,
+    "strategies": {
+      "slidingWindow": {
+        "enabled": true,
+        "maxMessages": 20
+      },
+      "tokenLimit": {
+        "enabled": false,
+        "maxTokens": 4000
+      },
+      "summary": {
+        "enabled": false,
+        "keepRecentMessages": 20
+      }
+    },
+    "executionOrder": [
+      "slidingWindow",
+      "tokenLimit",
+      "summary"
+    ]
+  }
+}

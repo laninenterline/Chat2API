@@ -816,3 +816,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   managementApi: DEFAULT_MANAGEMENT_API_CONFIG,
   contextManagement: DEFAULT_CONTEXT_MANAGEMENT_CONFIG,
 }
+
+/**
+ * Built-in Provider Configuration
+ * Re-exported from providers/builtin/index.ts to avoid duplication
+ */
+export { builtinProviders as BUILTIN_PROVIDERS } from '../providers/builtin/index.ts'

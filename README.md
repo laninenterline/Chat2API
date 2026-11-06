@@ -1,259 +1,232 @@
-# Chat2API Worker
+# Chat2API
 
-![CI](https://github.com/laninenterline/Chat2API/actions/workflows/ci.yml/badge.svg) ![License](https://img.shields.io/badge/license-GPL--3.0-blue) ![Platform](https://img.shields.io/badge/platform-Cloudflare%20Workers-orange)
+![CI](https://github.com/laninenterline/Chat2API/actions/workflows/ci.yml/badge.svg) ![License](https://img.shields.io/badge/license-GPL--3.0-blue) ![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
 
-中文 | [English](README_EN.md)
+网页版模型 → 标准 API 的**三合一 Node 网关**：一个服务同时接 **DeepSeek / GLM / MiniMax**，
+对 Claude Code、DeepSeek Harness（DSH）、Codex CLI 以及任意 OpenAI 兼容客户端提供统一入口。
 
-
-> 一个 **Cloudflare Worker**，把 **DeepSeek / GLM / MiniMax** 三家网页版模型统一成
-> **OpenAI ChatCompletions / Anthropic Messages / OpenAI Responses** 三种兼容 API。
-> 单文件部署、免费额度可跑，配合 KV 实现多账号池与负载均衡。
-
-由前作的单供应商版本（已合并到本仓库的 [`deepseek`](https://github.com/laninenterline/Chat2API/tree/deepseek) /
-[`glm`](https://github.com/laninenterline/Chat2API/tree/glm) /
-[`minimax`](https://github.com/laninenterline/Chat2API/tree/minimax) 分支）抽取合并而来，
-GLM 适配器复用 [HelloGML](https://github.com/LLM-Red-Team/glm-free-api) 系在 Workers 上验证过的实现。
-
-> **License: GPL-3.0**（继承上游）。仅供个人研究，网页版接口非官方、不稳定、有封号风险。
+- **`main`（本分支）**：Node 版 —— `npm i && npm start` 即可跑
+- **[`cf-worker`](https://github.com/laninenterline/Chat2API/tree/cf-worker)**：Cloudflare Workers 版 —— 同一套协议，部署到 CF 免费运行
+- 单供应商裁剪版：`deepseek` / `glm` / `minimax`（Node）和 `deepseek-worker` / `glm-worker` / `minimax-worker`（Worker）
 
 ## 分支一览
 
-四个相关项目已合并进本仓库，用分支区分（原仓库仍然保留，可随时归档/删除）：
-
 | 分支 | 内容 |
 |---|---|
-| [`main`](https://github.com/laninenterline/Chat2API) | 三合一 Cloudflare Worker（本仓库默认分支） |
-| [`deepseek`](https://github.com/laninenterline/Chat2API/tree/deepseek) | DeepSeek 单供应商 Node 版（原 DeepSeek-Free-API） |
-| [`glm`](https://github.com/laninenterline/Chat2API/tree/glm) | GLM 单供应商 Node 版（原 GLM-Free-API） |
-| [`minimax`](https://github.com/laninenterline/Chat2API/tree/minimax) | MiniMax 单供应商 Node 版（原 MiniMax-Free-API） |
-| [`deepseek-worker`](https://github.com/laninenterline/Chat2API/tree/deepseek-worker) | DeepSeek 单供应商 Cloudflare Worker 版 |
-| [`glm-worker`](https://github.com/laninenterline/Chat2API/tree/glm-worker) | GLM 单供应商 Cloudflare Worker 版 |
-| [`minimax-worker`](https://github.com/laninenterline/Chat2API/tree/minimax-worker) | MiniMax 单供应商 Cloudflare Worker 版 |
+| [`main`](https://github.com/laninenterline/Chat2API) | 三合一 Node 版（本分支） |
+| [`cf-worker`](https://github.com/laninenterline/Chat2API/tree/cf-worker) | 三合一 Cloudflare Workers 版 |
+| [`deepseek`](https://github.com/laninenterline/Chat2API/tree/deepseek) | DeepSeek 单供应商 Node 版 |
+| [`glm`](https://github.com/laninenterline/Chat2API/tree/glm) | GLM 单供应商 Node 版 |
+| [`minimax`](https://github.com/laninenterline/Chat2API/tree/minimax) | MiniMax 单供应商 Node 版 |
+| [`deepseek-worker`](https://github.com/laninenterline/Chat2API/tree/deepseek-worker) | DeepSeek 单供应商 Worker 版 |
+| [`glm-worker`](https://github.com/laninenterline/Chat2API/tree/glm-worker) | GLM 单供应商 Worker 版 |
+| [`minimax-worker`](https://github.com/laninenterline/Chat2API/tree/minimax-worker) | MiniMax 单供应商 Worker 版 |
 
-```bash
-git clone -b deepseek https://github.com/laninenterline/Chat2API.git   # Node 版
-git clone -b glm-worker https://github.com/laninenterline/Chat2API.git # Worker 版
-```
+从 [xiaoY233/Chat2API](https://github.com/xiaoY233/Chat2API)（Electron 桌面版，v1.4.0，60k 行）剥离出来的
+**精简网关**，去掉 Electron / GUI / 托盘 / 自动更新，只保留 deepseek、glm、minimax 三家网页端供应商
+（外加一个可选的通用 OpenAI 兼容上游），并保留流式、多轮、工具调用、模型映射、负载均衡、上下文管理、管理接口。
 
-## 特性
+> **许可证**：上游 Chat2API 是 GPL-3.0，本仓库包含其衍生代码，因此同样按 **GPL-3.0** 发布。
+> 仅限自用/研究；凭据来自网页版个人账号，有封号风险，商用请走官方 API。
 
-- **四协议入口**：`/v1/chat/completions`、`/v1/messages`（Claude Code / DSH）、`/v1/responses`（Codex）、`/v1beta/models/*`（Gemini）
-- **`/v1/models` 双形状**：带 `anthropic-version` 头时返回 Anthropic 形状（Claude Code / DSH 探测用）
-- **三供应商**：DeepSeek（wasm PoW）、GLM（sign 签名）、MiniMax（设备注册 + 轮询）
-- **多账号池**：KV 存账号，`round-robin` / `fill-first` / `failover`，失败账号 60s 冷却
-- **模型映射**：支持精确与 `*` 通配符，客户端可用 `claude-*` / `gpt-*` 等名字路由
-- **工具调用**：网页版没有原生 function calling，统一「提示词注入 + 输出解析」方案（支持 `[function_calls]`、XML、Anthropic、JSON 四种格式）
-- **管理接口**：`/admin/api/*` 增删账号、查状态、改配置（带脱敏）
-- **零 Node 依赖**：DeepSeek 的 wasm 通过 `CompiledWasm` 打包进 Worker
+---
 
-## 目录结构
-
-```
-src/
-├── worker/                  # Worker 入口与核心层
-│   ├── index.ts             # fetch 路由 + CORS + 鉴权
-│   ├── protocols.ts         # 三协议入口（OpenAI / Anthropic / Responses）
-│   ├── completion.ts        # 模型映射 → 选账号 → 工具注入 → 调 provider
-│   ├── store.ts             # KV 账号池 / 负载均衡 / 配置 / 统计
-│   ├── tools.ts             # 工具提示注入 + 输出解析
-│   ├── admin.ts             # /admin/api/* 管理接口 + HTML 面板
-│   ├── sse.ts               # Web Stream SSE 解析
-│   ├── providers/
-│   │   ├── deepseek.ts      # DeepSeek 网页版（PoW 用 wasm）
-│   │   ├── glm.ts           # GLM 包装（复用 glm-legacy）
-│   │   ├── minimax.ts       # MiniMax 设备注册 + 轮询
-│   │   ├── glm-legacy/      # HelloGML 的 Workers 版 GLM 实现
-│   │   └── catalog.ts       # 模型元数据
-│   └── types.ts
-├── main/                    # 从 Node 版复用的纯逻辑：协议转换、工具解析、类型
-│   ├── proxy/convert/       # OpenAI → Anthropic / Responses 转换与流式编码
-│   ├── proxy/toolCalling/   # 工具提示词协议
-│   ├── proxy/utils/         # 工具解析器（bracket/xml/anthropic/json）
-│   └── store/types.ts
-└── shared/                  # 共享类型
-assets/sha3_wasm_bg.*.wasm   # DeepSeek PoW wasm
-```
-
-## 部署
-
-### 一键脚本（推荐）
-
-```bash
-export CLOUDFLARE_API_TOKEN=...      # Workers + KV 编辑权限
-export API_KEYS="sk-a,sk-b"          # 可选
-export ADMIN_KEY="your-admin-key"    # 可选
-./scripts/deploy.sh                  # 自动建/绑定 KV、写 Secret、部署
-```
-
-其它变量：`CLOUDFLARE_ACCOUNT_ID`、`KV_NAME`（默认 `KV`）、`SIGN_SECRET`、`SKIP_SECRETS=1`、`SKIP_KV=1`。
-
-### 手动步骤
-
-### 1. 准备
+## 1. 快速开始
 
 ```bash
 npm install
-npx wrangler login            # 或设置 CLOUDFLARE_API_TOKEN
-npx wrangler kv namespace create KV
-# 把输出里的 id 填到 wrangler.toml 的 [[kv_namespaces]] 下
+cp config.example.json config.json     # 填账号凭据
+npm start                              # 默认 http://127.0.0.1:8080
 ```
 
-### 2. 配置 Secrets（推荐）
+凭据获取方式（沿用 Chat2API）：
+
+| 供应商 | 凭据字段 | 从哪拿 |
+|---|---|---|
+| DeepSeek | `token` | chat.deepseek.com 登录 → F12 → Application → LocalStorage → `userToken` |
+| GLM | `refresh_token` | chatglm.cn 登录 → F12 → Application → LocalStorage → `chatglm_refresh_token` |
+| MiniMax | `token`（可 `realUserID+JWT`）、`realUserID` | agent.minimaxi.com 登录 → F12 → LocalStorage → `_token` / `user_detail_agent` |
+
+常用命令：
 
 ```bash
-npx wrangler secret put API_KEYS      # 例：sk-your-key,sk-team
-npx wrangler secret put ADMIN_KEY     # 管理接口用
-# 可选
-npx wrangler secret put SIGN_SECRET   # 覆盖 GLM 默认签名 secret
+npm run typecheck     # tsc --noEmit
+npm test              # 协议转换单测（7 项，不需要账号）
+npm run test:e2e      # 端到端协议测试（20 项，自带 mock 上游，不需要账号）
+bash scripts/smoke-test.sh   # 健康检查/鉴权/管理接口（需要服务已启动）
 ```
 
-也可以不设 Key（放开访问，但不建议）。
+服务启动后有三组入口：
 
-### 3. 部署
-
-```bash
-npm run deploy
-# 输出 https://chat2api-worker.<your-subdomain>.workers.dev
+```
+http://127.0.0.1:8080/v1/chat/completions   OpenAI ChatCompletions
+http://127.0.0.1:8080/v1/messages           Anthropic Messages（Claude Code / DSH）
+http://127.0.0.1:8080/v1/responses          OpenAI Responses（Codex CLI）
 ```
 
-### 4. 添加账号
+---
 
-账号存在 KV（`accounts` key），通过管理接口操作：
-
-```bash
-BASE=https://chat2api-worker.<your-subdomain>.workers.dev
-KEY=你的 ADMIN_KEY
-
-# DeepSeek：浏览器 localStorage 的 userToken
-curl -X POST $BASE/admin/api/accounts -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"provider":"deepseek","name":"ds-1","credentials":{"token":"<userToken>"}}'
-
-# GLM：chatglm.cn 的 refresh_token
-curl -X POST $BASE/admin/api/accounts -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"provider":"glm","name":"glm-1","credentials":{"refresh_token":"<refresh_token>"}}'
-
-# MiniMax：agent.minimax.cn 的 _token（realUserID 可选，会自动从 JWT 解析）
-curl -X POST $BASE/admin/api/accounts -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"provider":"minimax","name":"mm-1","credentials":{"token":"<jwt>","realUserID":"<id>"}}'
-
-# 查看
-curl $BASE/admin/api/status  -H "Authorization: Bearer $KEY"
-curl $BASE/admin/api/accounts -H "Authorization: Bearer $KEY"
-```
-
-管理页面：浏览器打开 `$BASE/admin`。
-
-## 客户端接入
-
-### Claude Code
+## 2. 对接 Claude Code
 
 ```bash
-export ANTHROPIC_BASE_URL=https://chat2api-worker.xxx.workers.dev
-export ANTHROPIC_AUTH_TOKEN=sk-your-key
-export ANTHROPIC_MODEL=GLM-5.3
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8080
+export ANTHROPIC_AUTH_TOKEN=sk-local-test        # 对应 config.json 的 apiKeys
+export ANTHROPIC_MODEL=deepseek-v4-pro
+export ANTHROPIC_SMALL_FAST_MODEL=deepseek-v4-flash
 claude
 ```
 
-### DeepSeek Harness (DSH)
+说明：
 
-`~/.dsh/profiles/<profile>/cordis.patch.yml`：
+- Claude Code 发的是 Anthropic `/v1/messages`，用 `x-api-key`（`ANTHROPIC_API_KEY`）或 `Authorization: Bearer`（`ANTHROPIC_AUTH_TOKEN`），两种都支持。
+- 它会调 `/v1/messages/count_tokens` 估算上下文，本服务用字符数近似（4 字符 ≈ 1 token）。
+- `config.json` 里默认已配好 `claude-*` → `deepseek-v4-pro` 的通配映射，所以不设 `ANTHROPIC_MODEL` 也能跑。
+- 工具调用：Claude Code 的 `tools`/`tool_use`/`tool_result` 会被翻译成内部 OpenAI tools，交由上游 ToolCallingEngine 做 prompt 注入，再把模型输出的 tool_calls 翻回 `tool_use` 块。
 
-```yaml
-- id: llm-deepseek
-  name: "@deepseek-ai/dsh-llm-deepseek-api-key"
-  config:
-    baseURL: https://chat2api-worker.xxx.workers.dev
-    apiKeyEnv: WORKER_API_KEY
-    models:
-      - id: GLM-5.3
+## 3. 对接 DeepSeek Harness（DSH）
+
+DSH 的 DeepSeek 适配器本身讲 Anthropic Messages 协议（默认 `https://api.deepseek.com/anthropic`），所以只需要把 baseURL 指过来：
+
+```bash
+export DEEPSEEK_BASE_URL=http://127.0.0.1:8080
+dsh
 ```
 
-`~/.dsh/.credentials.yaml` 的 `refs` 里加 `WORKER_API_KEY: sk-your-key`。
+- DSH 会在 baseURL 后补 `/v1`，即请求 `http://127.0.0.1:8080/v1/messages`，正好命中。
+- DSH 默认模型 ID 是 `deepseek-flash` / `deepseek-v4-pro`；`config.json` 里已把 `deepseek-flash` 映射到 `deepseek-v4-flash`。
+- 也支持 `/anthropic` 前缀（`DEEPSEEK_BASE_URL=http://127.0.0.1:8080/anthropic`），服务端会自动重写路径。
+- **限制**：DSH 的附件/大图会走 DeepSeek 的 Files API（`/v1/files`），本服务未实现该端点；纯文本编码任务不受影响。
 
-### Codex CLI
+## 4. 对接 Codex CLI
 
 `~/.codex/config.toml`：
 
 ```toml
-model = "GLM-5.3"
-model_provider = "worker"
-[model_providers.worker]
-base_url = "https://chat2api-worker.xxx.workers.dev/v1"
+model = "deepseek-v4-pro"
+model_provider = "slim"
+
+[model_providers.slim]
+name = "Chat2API"
+base_url = "http://127.0.0.1:8080/v1"
 wire_api = "responses"
-env_key = "WORKER_API_KEY"
+env_key = "SLIM_API_KEY"
 ```
-
-### Gemini
 
 ```bash
-curl "https://chat2api-worker.xxx.workers.dev/v1beta/models/GLM-5.3:generateContent?key=sk-your-key" \
-  -H "Content-Type: application/json" \
-  -d '{"contents":[{"role":"user","parts":[{"text":"你好"}]}]}'
+export SLIM_API_KEY=sk-local-test
+codex
 ```
 
-流式：把 `:generateContent` 换成 `:streamGenerateContent`（SSE，`alt=sse` 客户端直接可用），
-模型列表 `GET /v1beta/models`。
+- Codex 走 OpenAI Responses API：请求里的 `input` items（message / function_call / function_call_output）、`instructions`、`tools` 都会转换成内部 OpenAI ChatCompletions；响应再还原成 `response.*` 事件流（`response.created` / `response.output_item.added` / `response.output_text.delta` / `response.function_call_arguments.delta` / `response.completed`）。
+- 如果你的 Codex 版本只支持 chat 协议，把 `wire_api` 改成 `"chat"`，直接走 `/v1/chat/completions` 即可。
+- `config.json` 里默认已配好 `gpt-*` / `o3*` / `o4*` → `deepseek-v4-pro` 的通配映射。
 
-### OpenAI SDK
+---
 
-```python
-from openai import OpenAI
-client = OpenAI(base_url="https://chat2api-worker.xxx.workers.dev/v1", api_key="sk-your-key")
-print(client.chat.completions.create(model="MiniMax-M3.1-Flash",
-      messages=[{"role":"user","content":"hi"}]).choices[0].message.content)
+## 5. 目录结构
+
+```
+Chat2API/
+├── config.example.json          # 配置模板
+├── Dockerfile
+├── assets/sha3_wasm_bg.*.wasm   # DeepSeek PoW 用（原样拷贝）
+├── scripts/
+│   ├── smoke-test.sh            # 冒烟测试（健康检查/鉴权/管理接口）
+│   └── test-protocols.ts        # 协议转换单元测试
+├── tests/
+│   ├── mock-openai-upstream.ts  # 本地 mock 上游（e2e 用）
+│   ├── e2e-config.json
+│   └── e2e-protocols.sh         # 端到端协议测试（20 项断言）
+└── src/
+    ├── main/
+    │   ├── index.ts             # ★新写：入口
+    │   ├── store/
+    │   │   ├── types.ts         # 原样拷贝
+    │   │   └── store.ts         # ★重写：config.json 替代 electron-store
+    │   ├── providers/builtin/   # 原样拷贝 + ★openai.ts（通用 OpenAI 兼容上游）
+    │   ├── lib/challenge.ts     # 改 2 行：wasm 路径
+    │   └── proxy/
+    │       ├── server.ts        # ★新写：Koa 中间件 + 路由注册
+    │       ├── completion.ts    # ★新写：选账号/映射/重试/统计（三个协议共用）
+    │       ├── forwarder.ts     # 裁剪：只保留三家 forwardXxx（1514→908 行）
+    │       ├── adapters/        # 原样拷贝 3686 行：三家网页端协议适配
+    │       ├── convert/
+    │       │   ├── openaiStream.ts   # ★新写：内部 SSE 解析
+    │       │   ├── anthropic.ts      # ★新写：Anthropic 请求/响应/流转换
+    │       │   └── responses.ts      # ★新写：Responses 请求/响应/流转换
+    │       ├── routes/
+    │       │   ├── chat.ts      # 原样拷贝：/v1/chat/completions
+    │       │   ├── models.ts    # 原样拷贝 + Anthropic 形状模型列表
+    │       │   ├── messages.ts  # ★新写：/v1/messages（Claude Code / DSH）
+    │       │   ├── responses.ts # ★新写：/v1/responses（Codex）
+    │       │   └── admin.ts     # ★新写：/v0/management
+    │       ├── toolCalling/     # 原样拷贝：工具调用引擎
+    │       ├── utils/ loadbalancer.ts modelMapper.ts stream.ts sessionManager.ts status.ts
+    │       └── services/contextManagementService.ts
+    └── shared/                  # 原样拷贝
 ```
 
-## 支持模型与映射
+**怎么认代码**：文件头注释标注「上游对应：Chat2API xxx」的都是原样/近原样拷贝，可直接与上游对照；标 ★ 的是脱离 Electron 新写的胶水层。
 
-| Provider | 模型 |
+---
+
+## 6. 配置项
+
+| 字段 | 说明 |
 |---|---|
-| DeepSeek | `deepseek-v4.1-flash`（别名 `deepseek-v4-flash`、`deepseek-v4-pro`） |
-| GLM | `GLM-5.3-Flash`、`GLM-5.3`（别名 `GLM-5.1`、`glm-4`） |
-| MiniMax | `MiniMax-M3.1-Flash`（别名 `MiniMax-M2.7`） |
+| `host` / `port` | 监听地址，默认 `127.0.0.1:8080` |
+| `apiKeys` | 调用 `/v1/*` 的 key（`Authorization: Bearer` 或 `x-api-key`）；为空则不校验 |
+| `adminKey` | 管理接口 key；为空则 `/v0/management` 返回 404 |
+| `loadBalanceStrategy` | `round-robin` / `fill-first` / `failover` |
+| `mode` | `single`（每次请求后清理上游会话）/ `multi`（保留上下文） |
+| `modelMappings` | 虚拟模型名 → 真实模型，支持通配符（`claude-*`、`gpt-*`） |
+| `contextManagement` | 滑窗 / token 上限 / 摘要 三段可单独开关 |
+| `providers.<id>.apiEndpoint` | 覆盖上游地址（例如把 `openai` 指到本地 mock 或中转） |
+| `accounts` | 账号数组，同一供应商可多账号自动轮询/故障切换 |
 
-模型名对网页端大多是「路由标签」，真正决定效果的是账号本身。
-可以在 `/admin/api/config` 里覆盖 `modelMappings`，例如：
+---
 
-```bash
-curl -X POST $BASE/admin/api/config -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"strategy":"round-robin","modelMappings":{"claude-*":"GLM-5.3","gpt-4o":"deepseek-v4.1-flash"}}'
-```
+## 7. 管理接口
 
-## 管理接口
+配置了 `adminKey` 才可用，鉴权头 `X-Admin-Key` 或 `Authorization: Bearer <adminKey>`。
 
-| Method | Path | 说明 |
+| 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/admin` | 管理页面 |
-| GET | `/admin/api/status` | 服务状态、账号统计、模型列表 |
-| GET | `/admin/api/accounts` | 账号列表（凭证脱敏） |
-| POST | `/admin/api/accounts` | 添加账号 `{provider, credentials, name?}` |
-| PATCH | `/admin/api/accounts/:id` | 改凭证 / 状态 |
-| DELETE | `/admin/api/accounts/:id` | 删除账号 |
-| GET | `/admin/api/config` | 查看配置 |
-| POST | `/admin/api/config` | 修改 `apiKeys` / `adminKey` / `strategy` / `modelMappings` |
+| GET/POST | `/v0/management/accounts` | 账号列表 / 新增账号 |
+| PATCH/DELETE | `/v0/management/accounts/:id` | 改凭据、状态 / 删账号 |
+| GET | `/v0/management/providers` | 供应商 + 模型 + 账号数 |
+| GET | `/v0/management/models` | 全部可用模型（含实际模型 ID） |
+| GET | `/v0/management/stats` | 请求量/成功率/平均耗时/按模型、账号分布 |
+| GET | `/v0/management/logs?limit=50` | 最近请求日志 |
+| GET/DELETE | `/v0/management/sessions` | 查看/清空会话 |
+| GET/PATCH | `/v0/management/config` | 查看/热改负载均衡策略、模型映射、mode |
 
-鉴权：`Authorization: Bearer <ADMIN_KEY>`（或任一 API Key）。
+另有 `GET /health`、`GET /stats`（无鉴权，便于探活）。
 
-## 本地开发与测试
+---
 
-```bash
-npm run typecheck    # tsc
-npm test             # 14 个单测：工具注入/解析、OpenAI/Anthropic/Responses/Gemini 转换、账号池、GLM 适配器 mock
-npm run dev          # wrangler dev（本机 workerd）
-npm run build        # wrangler dry-run 打包检查
-```
+## 8. 已验证 / 已知限制
 
-## 已知限制
+**已验证**：
 
-- **工具调用是缓冲式的**：为了让网页版模型也能稳定产出 `tool_calls`，请求带 `tools` 时会先收完整段回答再解析，客户端看到的工具调用不是逐字流式（SSE 仍然合法）。
-- 只做文本对话：不含图片 / 视频 / 音频生成。
+- `tsc --noEmit` 0 error；`npm i` + `npm start` 正常启动
+- `npm test`：**7 个协议转换单测全部通过**（Anthropic/Responses 的请求、响应、流式事件）
+- `npm run test:e2e`：**20 项端到端断言全部通过** —— 用本地 mock 上游跑通真实 HTTP：
+  - `/v1/messages` 非流式、流式文本、流式工具调用（`tool_use` + `input_json_delta` + `stop_reason: tool_use`）
+  - `/v1/responses` 非流式、流式文本、流式工具调用（`function_call` item + arguments delta + `response.completed`）
+  - `/v1/messages/count_tokens`、`/anthropic` 前缀重写、Anthropic 形状模型列表
+- `bash scripts/smoke-test.sh`：健康检查、鉴权、管理接口
+- 三家真实 adapter 都能打到上游并返回干净错误（占位凭据）：
+  DeepSeek `Authorization Failed` / GLM `unauthorized user(40102)` / MiniMax `HTTP 401`
 
-- MiniMax 账号需要积分，且只实现「单轮新会话」流程。
-- 网页版接口随时可能变更，失效时需要跟着改。
+**错误码约定**：上游失败时，`/v1/messages` 返回 502 + Anthropic 错误结构
+（`{"type":"error","error":{...}}`），`/v1/responses` 返回 502 + OpenAI 错误结构
+（`{"error":{...}}`）；客户端会原样展示 message。
 
-## License & credits
+**已知限制**：
 
-- **GPL-3.0**，继承自 [xiaoY233/Chat2API](https://github.com/xiaoY233/Chat2API)。
-- GLM 适配器来自 [HelloGML](https://github.com/LLM-Red-Team/glm-free-api) 系列（其 Worker 版实现）。
-- 协议转换 / 工具解析 / 类型定义复用本项目 Node 版 `chat2api-slim`。
-- 与 DeepSeek / 智谱 / MiniMax 官方无关，使用风险自负。
+- **没有用真实账号跑通完整对话**：成功路径依赖上游网页接口，凭据/接口一变就要跟着改。首次使用先看 `[DeepSeek]/[GLM]/[MiniMax]` 前缀日志。
+- `count_tokens` 是字符数近似，不是真实 tokenizer。
+- 没有 Claude 的 thinking 块（`thinking` content block）和 prompt caching 字段；客户端会忽略。
+- 不支持 DSH 的 Files API（`/v1/files`）、也不支持图片/视频生成（上游 Chat2API 也砍了）。
+- 凭据明文存 `config.json`（上游用 electron-store 混淆），自用请 `chmod 600`。

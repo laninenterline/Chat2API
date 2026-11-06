@@ -1,22 +1,36 @@
 {
-  "name": "chat2api-worker",
-  "version": "1.1.0",
+  "name": "chat2api",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Cloudflare Worker：DeepSeek / GLM / MiniMax 网页版三合一，OpenAI / Anthropic / Responses 兼容 API",
+  "description": "DeepSeek / GLM / MiniMax 网页版三合一网关，OpenAI / Anthropic / Responses 兼容（Node 版）",
   "license": "GPL-3.0",
-  "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
-    "build": "wrangler deploy --dry-run --outdir dist",
-    "test": "tsx --test tests/*.test.ts"
+  "engines": {
+    "node": ">=18"
   },
-  "dependencies": {},
+  "scripts": {
+    "start": "tsx src/main/index.ts",
+    "dev": "tsx watch src/main/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx scripts/test-protocols.ts",
+    "test:e2e": "bash tests/e2e-protocols.sh"
+  },
+  "dependencies": {
+    "@koa/router": "^12.0.1",
+    "axios": "^1.7.7",
+    "eventsource-parser": "^3.0.6",
+    "form-data": "^4.0.0",
+    "koa": "^2.15.3",
+    "koa-bodyparser": "^4.4.1",
+    "mime-types": "^2.1.35"
+  },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241022.0",
+    "@types/koa": "^2.15.0",
+    "@types/koa-bodyparser": "^4.3.12",
+    "@types/koa__router": "^12.0.4",
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^22.9.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "wrangler": "^3.90.0"
+    "typescript": "^5.6.3"
   }
 }
