@@ -1,5 +1,8 @@
 # Chat2API Worker
 
+> **分支说明**：`main` 分支是三合一 Node 版（Chat2API 主项目），本 `cf-worker` 分支是它的 Cloudflare Workers 版。
+
+
 ![CI](https://github.com/laninenterline/Chat2API/actions/workflows/ci.yml/badge.svg) ![License](https://img.shields.io/badge/license-GPL--3.0-blue) ![Platform](https://img.shields.io/badge/platform-Cloudflare%20Workers-orange)
 
 中文 | [English](README_EN.md)
